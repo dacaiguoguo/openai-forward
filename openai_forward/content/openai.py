@@ -170,6 +170,12 @@ class ChatLogger(LoggerBase):
             dict: A dictionary containing parsed messages, model, IP address, UID, and datetime.
         """
         uid = get_unique_id()
+        
+        # 从请求头获取或生成对话 ID
+        conversation_id = self.get_or_create_conversation_id(request)
+        
+        # 从请求头获取 assistant_name
+        assistant_name = self.get_assistant_name(request)
 
         if self.webui:
             self.q.put({"uid": uid, "payload": raw_payload})
@@ -186,6 +192,8 @@ class ChatLogger(LoggerBase):
             payload_return = orjson.dumps(payload)
 
         info = {
+            "conversation_id": conversation_id,  # 添加对话 ID
+            "assistant_name": assistant_name,  # 添加助手名称
             "messages": payload["messages"],
             "model": payload["model"],
             "stream": payload.get("stream", False),
@@ -209,6 +217,20 @@ class ChatLogger(LoggerBase):
         }
 
         return info, payload_return
+
+    def get_or_create_conversation_id(self, request: Request):
+        # 尝试从请求头获取 conversation_id
+        conversation_id = request.headers.get("X-Conversation-ID")
+        
+        # 如果请求头中没有 conversation_id，则生成一个新的
+        if not conversation_id:
+            conversation_id = str(uuid.uuid4())
+        
+        return conversation_id
+
+    def get_assistant_name(self, request: Request):
+        # 从请求头获取 assistant_name，如果没有则返回默认值
+        return request.headers.get("X-Assistant-Name", "default_assistant")
 
     def parse_bytearray(self, buffer: bytearray):
         """
