@@ -191,6 +191,9 @@ def get_matches(messages: List[Dict], assistants: List[Dict]):
         "model": msg.get("model"),
         "temperature": msg.get("temperature", 1),
         "messages": msg.get("messages"),
+        "conversation_id": msg.get("conversation_id"),
+        "user": msg.get("user"),
+        "assistant_name": msg.get("assistant_name"),
         "tools": msg.get("tools"),
         "is_tool_calls": ass.get("is_tool_calls"),
         "assistant": ass.get("assistant"),
@@ -218,11 +221,20 @@ def parse_log_to_list(log_path: str):
             print(f"{original_str=}")
             return ""
 
+    messages, assistant = [], []
+    
+    # 打开文件并逐行读取
     with open(log_path, "r", encoding="utf-8") as f:
-        messages, assistant = [], []
         for line in f.readlines():
-            content: dict = ast.literal_eval(line)
-            if content.get("messages"):
+            try:
+                # 使用 ast.literal_eval 解析每一行
+                content = ast.literal_eval(line)
+            except (SyntaxError, ValueError) as e:
+                print(f"Error parsing line: {line.strip()} due to {e}")
+                continue
+
+            # 如果存在 "messages" 键
+            if isinstance(content, dict) and content.get("messages"):
                 clean_content = {}
                 for key, value in content.items():
                     if key == "messages":
@@ -232,16 +244,16 @@ def parse_log_to_list(log_path: str):
                             ]
                         except Exception as e:
                             if not isinstance(value, list):
-                                print(
-                                    f"Warning(`message` should be a list): {content=}"
-                                )
+                                print(f"Warning(`message` should be a list): {content=}")
                             else:
                                 print(f"Warning({e=}): {content=}")
                             continue
                     else:
                         clean_content[key] = value
                 messages.append(clean_content)
-            else:
+
+            # 如果存在 "assistant" 键
+            elif isinstance(content, dict) and content.get("assistant"):
                 clean_content = {}
                 for key, value in content.items():
                     if key == "assistant":
@@ -249,6 +261,9 @@ def parse_log_to_list(log_path: str):
                     else:
                         clean_content[key] = value
                 assistant.append(clean_content)
+            else:
+                print(f"Warning: Unrecognized content format: {content=}")
+    
     return messages, assistant
 
 
