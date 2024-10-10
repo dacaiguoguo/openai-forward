@@ -319,17 +319,15 @@ class ChatLogger(LoggerBase):
         """
         try:
             line_dict = orjson.loads(line)
-            if parse_key == "content":
-                return line_dict["choices"][0]["delta"][parse_key]
-            elif parse_key == "tool_calls":
-                tool_calls = line_dict["choices"][0]["delta"]["tool_calls"]
-                return tool_calls[0]["function"]['arguments']
-            else:
-                logger.error(f"Unknown parse key: {parse_key}")
-                return ""
-        except JSONDecodeError:
+            if "choices" in line_dict and line_dict["choices"]:
+                choice = line_dict["choices"][0]
+                if "delta" in choice and parse_key in choice["delta"]:
+                    return choice["delta"][parse_key]
+            # 如果无法找到预期的内容，返回一个空字符串或其他默认值
             return ""
-        except KeyError:
+        except Exception as e:
+            # 记录错误，但不中断程序
+            logger.error(f"Error parsing line content: {e}")
             return ""
 
     def log(self, chat_info: dict):
